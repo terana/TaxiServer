@@ -1,10 +1,11 @@
-import asyncio
+from datetime import datetime
 
 from aiohttp import web
 
 import classes as cl
 import database as db
 import search as sch
+
 
 async def default(request):
     return web.json_response({})
@@ -34,6 +35,20 @@ def retrieve_destination(data):
         return None
     return cl.Geolocation(lat=destination.get('lat'),
                           lng=destination.get('lng'))
+
+
+def retrieve_ride(data):
+    user, start = retrieve_user_and_geolocation(data)
+    ride = cl.Ride(user=user, start=start,
+                   destination=retrieve_destination(data),
+                   mode=data.get('mode'))
+    if not start:
+        raise Exception("No start point")
+    if not ride.destination:
+        raise Exception("No end point")
+    if not user.device_id:
+        raise Exception("No device id")
+    return ride
 
 
 def default_response(user):
@@ -74,7 +89,7 @@ async def split(request):
     if opt == "start":
         resp = await split_start(data=data, conn=conn, loop=loop)
     elif opt == "status":
-        resp = await split_status(request)
+        resp = await split_status(conn, data.get('rideId'))
     else:
         raise Exception("Invalid option")
     user, _ = retrieve_user_and_geolocation(data)
@@ -83,25 +98,17 @@ async def split(request):
 
 
 async def split_start(data, conn, loop):
-    user, start = retrieve_user_and_geolocation(data)
-    ride = cl.Ride(user=user, start=start,
-                   destination=retrieve_destination(data),
-                   mode=data.get('mode'))
-    if not start:
-        raise Exception("No start point")
-    if not ride.destination:
-        raise Exception("No end point")
-    if not user.device_id:
-        raise Exception("No device id")
-    ride = await db.store_ride(conn=conn, ride=ride)
-    loop.create_task(asyncio.wait_for(fut=sch.search_ride_loop(conn=conn, ride=ride),
-                                      loop=loop,
-                                      timeout=ride.duration))
+    ride = await db.store_ride(conn=conn, ride=retrieve_ride(data))
+    loop.create_task(sch.find_ride(conn, ride))
     return {'rideId': ride.ride_id, 'duration': ride.duration}
 
 
-async def split_status(request):
-    return web.Response(status=200)
+async def split_status(conn, ride_id):
+    ride = await db.get_ride_by_id(conn, ride_id)
+    if ride.found:
+        found_ride = await db.get_ride_by_id(conn, ride_id=ride.found_ride_id)
+        return {'found': True, 'phone': found_ride.user.phone}
+    return {'found': False, 'timeout': bool(ride.begin_timestamp + ride.duration < datetime.now().timestamp())}
 
 
 async def split_cancel(request):

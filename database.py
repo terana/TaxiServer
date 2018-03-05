@@ -141,6 +141,16 @@ async def get_ride(conn, begin_timestamp, device_id):
         return cursor.fetchone()
 
 
+async def get_ride_by_id(conn, ride_id):
+    sql = 'SELECT * FROM rides WHERE ride_id=%s'
+    with conn.cursor() as cursor:
+        cursor.execute(sql, ride_id)
+        raw_ride = cursor.fetchone()
+        if raw_ride:
+            return cl.Ride().unmarshall(raw_ride)
+    return None
+
+
 async def store_ride(conn, ride):
     if not ride:
         return None
@@ -170,27 +180,36 @@ async def search_ride(conn, ride):
 
     sql = 'SELECT * \
             FROM rides \
-            WHERE device_id != {dev_id} \
-            AND ABS(from_lat - {flat}) < {fr} \
-            AND ABS (from_lng - {flng}) < {fr} \
-            AND ABS(to_lat - {tlat}) < {tr} \
-            AND ABS (to_lng - {tlng}) < {tr} \
-            AND begin_timestamp + duration > {now}'.format(dev_id=ride.device_id,
-                                                           flat=ride.start.lat,
-                                                           flng=ride.start.lng,
-                                                           tlat=ride.destination.lat,
-                                                           tlng=ride.destination.lng,
-                                                           fr=cl.Consts.start_radius_deg(),
-                                                           tr=cl.Consts.dest_radius_deg(),
+            WHERE device_id != "{dev_id}" \
+            AND ABS(from_lat - {from_lat}) < {from_rad} \
+            AND ABS (from_lng - {from_lng}) < {from_rad} \
+            AND ABS(to_lat - {to_lat}) < {to_rad} \
+            AND ABS (to_lng - {to_lng}) < {to_rad} \
+            AND found != 1 \
+            AND begin_timestamp + duration > {now}'.format(dev_id=ride.user.device_id,
+                                                           from_lat=ride.start.lat,
+                                                           from_lng=ride.start.lng,
+                                                           to_lat=ride.destination.lat,
+                                                           to_lng=ride.destination.lng,
+                                                           from_rad=cl.Consts.start_radius_deg(),
+                                                           to_rad=cl.Consts.dest_radius_deg(),
                                                            now=round(datetime.now().timestamp()))
-    # TODO better time duration operation!!
 
     with conn.cursor() as cursor:
         cursor.execute(sql)
-        return cursor.fetchone()
+        raw_ride = cursor.fetchone()
+        if raw_ride:
+            return cl.Ride().unmarshall(raw_ride)
+    return None
 
 
-async def remove_ride(conn, ride):
-    sql = "DELETE FROM rides WHERE ride_id=%"
+async def mark_as_found(conn, ride1, ride2):
+    if not ride1 or not ride2:
+        return
+
+    sql = 'UPDATE rides \
+               SET found = 1 \
+               WHERE ride_id = %s \
+               OR ride_id = %s'
     with conn.cursor() as cursor:
-        cursor.execute(sql, ride.ride_id)
+        cursor.execute(sql, (ride1.ride_id, ride2.ride_id))
