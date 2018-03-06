@@ -13,7 +13,7 @@ class Consts:
 
     @staticmethod
     def search_duration():
-        return 9000
+        return 900
 
     @staticmethod
     def start_radius_deg():
