@@ -39,6 +39,10 @@ class Consts:
     def push_url():
         return 'https://fcm.googleapis.com/fcm/send'
 
+    @staticmethod
+    def default_locaion():
+        return Geolocation(lat=55.755826, lng=37.617299900000035)
+
 
 class ClientError(Exception):
     pass
@@ -157,7 +161,7 @@ class Ride(Marshallable):
         self.found = found
         self.found_ride_id = found_ride_id
         self.status = status
-        self.rate=rate
+        self.rate = rate
 
     def marshall(self):
         return ({})

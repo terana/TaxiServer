@@ -48,11 +48,11 @@ async def retrieve_ride(data, conn):
                    destination=retrieve_destination(data),
                    mode=data.get('mode'))
     if not start:
-        raise Exception("No start point")
+        ride.start = cl.Consts.default_locaion()
     if not ride.destination:
-        raise Exception("No end point")
+        raise cl.ClientError("Нет точки назначения")
     if not user.device_id:
-        raise Exception("No device id")
+        raise cl.ClientError("Нет айди устройства")
     return ride
 
 
@@ -100,7 +100,7 @@ async def split(request):
     elif opt == "rate":
         resp = await split_rate(data=data, conn=conn)
     else:
-        raise Exception("Invalid option")
+        raise cl.ClientError("Неподдерживаемый метод")
     user, _ = await retrieve_user_and_geolocation(data, conn=conn)
     resp.update(default_response(user))
     return web.json_response(resp)
