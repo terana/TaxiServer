@@ -36,7 +36,7 @@ async def close_connection(app):
 
 async def check(conn):
     with conn.cursor() as cursor:
-        cursor.execute('SELECT * FROM users WHERE device_id=1')
+        cursor.execute('SELECT * FROM users WHERE device_id="1"')
         cursor.fetchone()
 
 
@@ -128,7 +128,7 @@ async def apply_promo(conn, code):
     sql = 'SELECT * FROM users WHERE promo=%s'
     with conn.cursor() as cursor:
         cursor.execute(sql, code)
-        user = cursor.fetchone()
+        user = cl.User().unmarshall(cursor.fetchone())
         if user.used_promo < cl.Consts.total_promo():
             user.used_promo += 1
             await update_user(conn, user)
@@ -157,8 +157,8 @@ async def store_ride(conn, ride):
     ride.begin_timestamp = datetime.now().timestamp()
     ride.duration = cl.Consts.search_duration()
     sql = 'INSERT INTO rides \
-                (begin_timestamp, duration, device_id, mode, from_lat, from_lng, to_lat, to_lng)\
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)'
+                (begin_timestamp, duration, device_id, mode, from_lat, from_lng, to_lat, to_lng, phone, fcm_token, found, found_id)\
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
     with conn.cursor() as cursor:
         cursor.execute(sql, (str(ride.begin_timestamp),
                              str(ride.duration),
@@ -167,7 +167,11 @@ async def store_ride(conn, ride):
                              str(ride.start.lat),
                              str(ride.start.lng),
                              str(ride.destination.lat),
-                             str(ride.destination.lat)))
+                             str(ride.destination.lat),
+                             str(ride.user.phone),
+                             str(ride.user.fcm_token),
+                             str(ride.found),
+                             str(ride.found_ride_id)))
     raw_ride = await get_ride(conn=conn,
                               device_id=ride.user.device_id,
                               begin_timestamp=round(ride.begin_timestamp))
@@ -178,6 +182,13 @@ async def search_ride(conn, ride):
     if not ride:
         return None
 
+    if ride.mode == "driver":
+        search_mode = "'passenger'"
+    elif ride.mode == "passenger":
+        search_mode = "'driver'"
+    else:
+        search_mode = "'driver' , passenger"
+
     sql = 'SELECT * \
             FROM rides \
             WHERE device_id != "{dev_id}" \
@@ -186,14 +197,17 @@ async def search_ride(conn, ride):
             AND ABS(to_lat - {to_lat}) < {to_rad} \
             AND ABS (to_lng - {to_lng}) < {to_rad} \
             AND found != 1 \
-            AND begin_timestamp + duration > {now}'.format(dev_id=ride.user.device_id,
-                                                           from_lat=ride.start.lat,
-                                                           from_lng=ride.start.lng,
-                                                           to_lat=ride.destination.lat,
-                                                           to_lng=ride.destination.lng,
-                                                           from_rad=cl.Consts.start_radius_deg(),
-                                                           to_rad=cl.Consts.dest_radius_deg(),
-                                                           now=round(datetime.now().timestamp()))
+            AND begin_timestamp + duration > {now} \
+            AND mode in ({mode})'.format(dev_id=ride.user.device_id,
+
+                                         from_lat=ride.start.lat,
+                                         from_lng=ride.start.lng,
+                                         to_lat=ride.destination.lat,
+                                         to_lng=ride.destination.lng,
+                                         from_rad=cl.Consts.start_radius_deg(),
+                                         to_rad=cl.Consts.dest_radius_deg(),
+                                         now=round(datetime.now().timestamp()),
+                                         mode=search_mode)
 
     with conn.cursor() as cursor:
         cursor.execute(sql)

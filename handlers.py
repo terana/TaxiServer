@@ -11,7 +11,7 @@ async def default(request):
     return web.json_response({})
 
 
-def retrieve_user_and_geolocation(data):
+async def retrieve_user_and_geolocation(data, conn):
     user = cl.User(name=data.get('name'),
                    phone=data.get('phone'),
                    fcm_token=data.get('fcmToken'),
@@ -21,11 +21,16 @@ def retrieve_user_and_geolocation(data):
                    region=data.get('region'),
                    language=data.get('language'),
                    os_version=data.get('osVersion'))
+    if user.device_id:
+        db_user = await db.get_user(conn=conn, device_id=user.device_id)
+        if db_user:
+            user = db_user.update(user)
 
-    geolocation = data.get('geolocation', {})
-    geolocation = cl.Geolocation(lat=geolocation.get('lat'), lng=geolocation.get('lng'))
-    if not geolocation.lat or not geolocation.lng:
-        geolocation = None
+    geolocation = data.get('geolocation')
+    if geolocation:
+        geolocation = cl.Geolocation(lat=geolocation.get('lat'), lng=geolocation.get('lng'))
+        if not geolocation.lat or not geolocation.lng:
+            geolocation = None
     return user, geolocation
 
 
@@ -37,8 +42,8 @@ def retrieve_destination(data):
                           lng=destination.get('lng'))
 
 
-def retrieve_ride(data):
-    user, start = retrieve_user_and_geolocation(data)
+async def retrieve_ride(data, conn):
+    user, start = await retrieve_user_and_geolocation(data, conn=conn)
     ride = cl.Ride(user=user, start=start,
                    destination=retrieve_destination(data),
                    mode=data.get('mode'))
@@ -68,7 +73,7 @@ async def store_user(request):
     data = await request.json()
     print(data)
     conn = request.app['db_connection']
-    user, _ = retrieve_user_and_geolocation(data)
+    user, _ = await retrieve_user_and_geolocation(data, conn=conn)
     user = await db.store_user(conn, user)
     return web.json_response(default_response(user))
 
@@ -76,8 +81,8 @@ async def store_user(request):
 async def apply_promo(request):
     data = await request.json()
     conn = request.app['db_connection']
-    db.apply_promo(conn, data.get('code'))
-    user, _ = retrieve_user_and_geolocation(data)
+    await db.apply_promo(conn, data.get('code'))
+    user, _ = await retrieve_user_and_geolocation(data, conn=conn)
     return web.json_response(default_response(user))
 
 
@@ -92,13 +97,13 @@ async def split(request):
         resp = await split_status(conn, data.get('rideId'))
     else:
         raise Exception("Invalid option")
-    user, _ = retrieve_user_and_geolocation(data)
+    user, _ = await retrieve_user_and_geolocation(data, conn=conn)
     resp.update(default_response(user))
     return web.json_response(resp)
 
 
 async def split_start(data, conn, loop):
-    ride = await db.store_ride(conn=conn, ride=retrieve_ride(data))
+    ride = await db.store_ride(conn=conn, ride=await retrieve_ride(data, conn=conn))
     loop.create_task(sch.find_ride(conn, ride))
     return {'rideId': ride.ride_id, 'duration': ride.duration}
 

@@ -6,10 +6,11 @@ import pymysql
 from aiohttp import web
 from aiohttp.web import middleware
 
+import classes as cl
 import database as db
 import handlers as hd
 from database import connect_to_db, close_connection
-
+import json
 
 @middleware
 async def log_middleware(request, handler):
@@ -24,15 +25,18 @@ async def error_middleware(request, handler):
     try:
         resp = await handler(request)
         return resp
-    except (BrokenPipeError, ConnectionError, pymysql.err.Error) as err:
+    except (BrokenPipeError, ConnectionError, pymysql.err.Error, pymysql.err.IntegrityError) as err:
         await db.close_connection(request.app)
         sleep(1)
         await db.connect_to_db(request.app)
         resp = await handler(request)
         return resp
+    except (cl.ClientError, json.JSONDecodeError) as err:
+        print("Caught client error in error moddleware: {}\n".format(err))
+        return web.json_response({'error': 1, 'alert_str': "{}".format(err)})
     except Exception as err:
         print("Caught exception in error moddleware: {}\n".format(err))
-        return web.json_response({'error': 1, 'alert_str': "{}".format(err)})
+        return web.json_response({'error': 1, 'alert_str': "Server error"})
     except:
         print("Caught error in error middleware")
         return web.json_response({'error': 1, 'alert_str': "Server error"})
@@ -68,7 +72,7 @@ def launch_server(host, port):
     app.router.add_post('/user', hd.store_user)
     app.router.add_post('/rate', hd.rate)
     app.router.add_post('/events', hd.events)
-    app.router.add_post('/apply_promo', hd.apply_promo)
+    app.router.add_post('/promo/apply', hd.apply_promo)
 
     split_resource = app.router.add_resource('/split/{option}')
     split_resource.add_route('POST', hd.split)

@@ -13,15 +13,15 @@ class Consts:
 
     @staticmethod
     def search_duration():
-        return 9000
+        return 90
 
     @staticmethod
     def start_radius_deg():
-        return 0.1
+        return 0.0015  # around 10km
 
     @staticmethod
     def dest_radius_deg():
-        return 0.1
+        return 0.0015  # around 10km
 
     @staticmethod
     def start_radius_km():
@@ -38,6 +38,10 @@ class Consts:
     @staticmethod
     def push_url():
         return 'https://fcm.googleapis.com/fcm/send'
+
+
+class ClientError(Exception):
+    pass
 
 
 class Marshallable:
@@ -120,6 +124,7 @@ class User(Marshallable):
             self.os_version = new_user.os_version
         if new_user.app_version:
             self.app_version = new_user.app_version
+        return self
 
 
 class Geolocation:
@@ -137,7 +142,7 @@ class Ride(Marshallable):
                  start=None,
                  destination=None,
                  found=0,
-                 found_ride_id=None):
+                 found_ride_id=0):
         self.ride_id = ride_id
         self.begin_timestamp = begin_timestamp
         self.duration = duration
