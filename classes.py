@@ -142,7 +142,9 @@ class Ride(Marshallable):
                  start=None,
                  destination=None,
                  found=0,
-                 found_ride_id=0):
+                 found_ride_id=0,
+                 status=None,
+                 rate=None):
         self.ride_id = ride_id
         self.begin_timestamp = begin_timestamp
         self.duration = duration
@@ -152,6 +154,8 @@ class Ride(Marshallable):
         self.destination = destination
         self.found = found
         self.found_ride_id = found_ride_id
+        self.status = status
+        self.rate=rate
 
     def marshall(self):
         return ({})
@@ -168,4 +172,6 @@ class Ride(Marshallable):
         self.destination = Geolocation(lat=db_tuple[7], lng=db_tuple[8])
         self.found = db_tuple[11]
         self.found_ride_id = db_tuple[12]
+        self.status = db_tuple[13]
+        self.rate = db_tuple[14]
         return self

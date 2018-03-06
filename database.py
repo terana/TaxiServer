@@ -22,8 +22,8 @@ def create_promo_code(user):
 async def connect_to_db(app):
     connection = pymysql.connect(
         host='127.0.0.1',
-        user='production',
-        password='qH9JSqkEzjzntrAg',
+        user='split',
+        password='taxisplit1927230',
         database='taxi',
         charset='utf8')
     connection.autocommit(True)
@@ -142,6 +142,8 @@ async def get_ride(conn, begin_timestamp, device_id):
 
 
 async def get_ride_by_id(conn, ride_id):
+    if not ride_id:
+        return None
     sql = 'SELECT * FROM rides WHERE ride_id=%s'
     with conn.cursor() as cursor:
         cursor.execute(sql, ride_id)
@@ -198,16 +200,16 @@ async def search_ride(conn, ride):
             AND ABS (to_lng - {to_lng}) < {to_rad} \
             AND found != 1 \
             AND begin_timestamp + duration > {now} \
-            AND mode in ({mode})'.format(dev_id=ride.user.device_id,
-
-                                         from_lat=ride.start.lat,
-                                         from_lng=ride.start.lng,
-                                         to_lat=ride.destination.lat,
-                                         to_lng=ride.destination.lng,
-                                         from_rad=cl.Consts.start_radius_deg(),
-                                         to_rad=cl.Consts.dest_radius_deg(),
-                                         now=round(datetime.now().timestamp()),
-                                         mode=search_mode)
+            AND mode in ({mode}) \
+            AND status != "cancelled"'.format(dev_id=ride.user.device_id,
+                                              from_lat=ride.start.lat,
+                                              from_lng=ride.start.lng,
+                                              to_lat=ride.destination.lat,
+                                              to_lng=ride.destination.lng,
+                                              from_rad=cl.Consts.start_radius_deg(),
+                                              to_rad=cl.Consts.dest_radius_deg(),
+                                              now=round(datetime.now().timestamp()),
+                                              mode=search_mode)
 
     with conn.cursor() as cursor:
         cursor.execute(sql)
@@ -222,8 +224,32 @@ async def mark_as_found(conn, ride1, ride2):
         return
 
     sql = 'UPDATE rides \
-               SET found = 1 \
-               WHERE ride_id = %s \
-               OR ride_id = %s'
+               SET found = 1, status="found", found_id = %s \
+               WHERE ride_id = %s'
     with conn.cursor() as cursor:
         cursor.execute(sql, (ride1.ride_id, ride2.ride_id))
+        cursor.execute(sql, (ride2.ride_id, ride1.ride_id))
+
+
+async def update_status(conn, ride, status):
+    if not ride or not ride.ride_id:
+        return
+
+    sql = 'UPDATE rides \
+               SET status = "{}" \
+               WHERE ride_id = %s'.format(status)
+    with conn.cursor() as cursor:
+        cursor.execute(sql, ride.ride_id)
+    ride.status = status
+    return ride
+
+
+async def rate_ride(conn, ride_id, rate):
+    if ride_id:
+        return
+
+    sql = 'UPDATE rides \
+               SET rate = {} \
+               WHERE ride_id = %s'.format(rate)
+    with conn.cursor() as cursor:
+        cursor.execute(sql, ride_id)

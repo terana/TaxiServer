@@ -14,7 +14,7 @@ async def find_ride(conn, ride):
         return
     await asyncio.sleep(ride.duration)
     ride = await db.get_ride_by_id(conn, ride_id=ride.ride_id)
-    if ride.found == 0:
+    if ride.found == 0 and ride.status != "cancelled":
         await send_timeout_push(ride)
         print("Timeout exceeded for ride {}".format(ride.ride_id))
 

@@ -95,6 +95,10 @@ async def split(request):
         resp = await split_start(data=data, conn=conn, loop=loop)
     elif opt == "status":
         resp = await split_status(conn, data.get('rideId'))
+    elif opt == "cancel":
+        resp = await split_cancel(data=data, conn=conn)
+    elif opt == "rate":
+        resp = await split_rate(data=data, conn=conn)
     else:
         raise Exception("Invalid option")
     user, _ = await retrieve_user_and_geolocation(data, conn=conn)
@@ -116,12 +120,15 @@ async def split_status(conn, ride_id):
     return {'found': False, 'timeout': bool(ride.begin_timestamp + ride.duration < datetime.now().timestamp())}
 
 
-async def split_cancel(request):
-    return web.Response(status=200)
+async def split_cancel(data, conn):
+    ride = await db.get_ride_by_id(conn, ride_id=data.get("rideId"))
+    await db.update_status(conn=conn, status="cancelled", ride=ride)
+    return {}
 
 
-async def rate(request):
-    return web.Response(status=200)
+async def split_rate(data, conn):
+    await db.rate_ride(conn, ride_id=data.get('rideId'), rate=data.get('rating'))
+    return {}
 
 
 async def events(request):

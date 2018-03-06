@@ -70,7 +70,6 @@ def launch_server(host, port):
 
     app.router.add_get('/', hd.default)
     app.router.add_post('/user', hd.store_user)
-    app.router.add_post('/rate', hd.rate)
     app.router.add_post('/events', hd.events)
     app.router.add_post('/promo/apply', hd.apply_promo)
 
