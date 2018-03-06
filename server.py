@@ -81,7 +81,7 @@ def launch_server(host, port):
 
 if __name__ == "__main__":
     try:
-        launch_server("127.0.0.1", 80)
+        launch_server("78.140.221.64", 80)
     except:
         sleep(2)
-        launch_server("127.0.0.1", 80)
+        launch_server("78.140.221.64", 80)
