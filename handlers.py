@@ -109,7 +109,7 @@ async def split(request):
 async def split_start(data, conn, loop):
     ride = await db.store_ride(conn=conn, ride=await retrieve_ride(data, conn=conn))
     loop.create_task(sch.find_ride(conn, ride))
-    return {'rideId': ride.ride_id, 'duration': ride.duration}
+    return {'rideId': str(ride.ride_id), 'duration': ride.duration}
 
 
 async def split_status(conn, ride_id):
