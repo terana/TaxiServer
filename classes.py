@@ -13,15 +13,15 @@ class Consts:
 
     @staticmethod
     def search_duration():
-        return 90
+        return 9000
 
     @staticmethod
     def start_radius_deg():
-        return 0.0015  # around 10km
+        return 0.00078125  # around 5km
 
     @staticmethod
     def dest_radius_deg():
-        return 0.0015  # around 10km
+        return 0.00078125  # around 5km
 
     @staticmethod
     def start_radius_km():
@@ -87,6 +87,8 @@ class User(Marshallable):
         return {'name': self.name}
 
     def unmarshall(self, db_tuple):
+        if not db_tuple:
+            return None
         self.device_id = db_tuple[0]
         self.fcm_token = db_tuple[1]
         self.name = db_tuple[2]

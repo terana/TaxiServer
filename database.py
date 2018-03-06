@@ -40,8 +40,16 @@ async def check(conn):
         cursor.fetchone()
 
 
-async def store_event(conn, event):
-    pass
+async def store_events(conn, events):
+    if not events:
+        return
+    sql = "INSERT INTO events \
+            (name, timestamp, parameters)\
+          VALUES (%s, %s, %s)"
+
+    with conn.cursor() as cursor:
+        for ev in events:
+            cursor.execute(sql, (ev.get('name', "undefined"), ev.get('time', 0), ev.get('parameters', "")))
 
 
 async def get_user(conn, device_id):
@@ -128,7 +136,10 @@ async def apply_promo(conn, code):
     sql = 'SELECT * FROM users WHERE promo=%s'
     with conn.cursor() as cursor:
         cursor.execute(sql, code)
-        user = cl.User().unmarshall(cursor.fetchone())
+        raw_user = cursor.fetchone()
+        if not raw_user:
+            return None
+        user = cl.User().unmarshall(raw_user)
         if user.used_promo < cl.Consts.total_promo():
             user.used_promo += 1
             await update_user(conn, user)
