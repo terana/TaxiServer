@@ -173,20 +173,21 @@ async def store_ride(conn, ride):
     ride.duration = cl.Consts.search_duration()
     sql = 'INSERT INTO rides \
                 (begin_timestamp, duration, device_id, mode, from_lat, from_lng, to_lat, to_lng, phone, fcm_token, found, found_id)\
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'
+                VALUES ({begin}, {duration}, "{dev_id}", "{mode}", {from_lat}, {from_lng}, {to_lat}, {to_lng}, \
+                 "{phone}", "{fcm}", {found}, {found_id})'.format(begin=round(ride.begin_timestamp),
+                                                                  duration=ride.duration,
+                                                                  dev_id=ride.user.device_id,
+                                                                  mode=ride.mode,
+                                                                  from_lat=ride.start.lat,
+                                                                  from_lng=ride.start.lng,
+                                                                  to_lat=ride.destination.lat,
+                                                                  to_lng=ride.destination.lng,
+                                                                  phone=ride.user.phone,
+                                                                  fcm=ride.user.fcm_token,
+                                                                  found=ride.found,
+                                                                  found_id=ride.found_ride_id)
     with conn.cursor() as cursor:
-        cursor.execute(sql, (str(ride.begin_timestamp),
-                             str(ride.duration),
-                             str(ride.user.device_id),
-                             str(ride.mode),
-                             str(ride.start.lat),
-                             str(ride.start.lng),
-                             str(ride.destination.lat),
-                             str(ride.destination.lat),
-                             str(ride.user.phone),
-                             str(ride.user.fcm_token),
-                             str(ride.found),
-                             str(ride.found_ride_id)))
+        cursor.execute(sql)
     raw_ride = await get_ride(conn=conn,
                               device_id=ride.user.device_id,
                               begin_timestamp=round(ride.begin_timestamp))
