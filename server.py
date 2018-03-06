@@ -69,11 +69,11 @@ def launch_server(host, port):
     app.on_cleanup.append(close_connection)
 
     app.router.add_get('/', hd.default)
-    app.router.add_post('/user', hd.store_user)
-    app.router.add_post('/events', hd.events)
-    app.router.add_post('/promo/apply', hd.apply_promo)
+    app.router.add_post('/api/v1/user', hd.store_user)
+    app.router.add_post('/api/v1/events', hd.events)
+    app.router.add_post('/api/v1/promo/apply', hd.apply_promo)
 
-    split_resource = app.router.add_resource('/split/{option}')
+    split_resource = app.router.add_resource('/api/v1/split/{option}')
     split_resource.add_route('POST', hd.split)
 
     web.run_app(app, host=host, port=port)
