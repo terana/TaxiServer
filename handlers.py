@@ -88,6 +88,7 @@ async def apply_promo(request):
 
 async def split(request):
     data = await request.json()
+    print(data)
     conn = request.app['db_connection']
     loop = request.app.loop
     opt = request.match_info['option']
