@@ -114,6 +114,8 @@ async def split_start(data, conn, loop):
 
 async def split_status(conn, ride_id):
     ride = await db.get_ride_by_id(conn, ride_id)
+    if not ride:
+        raise cl.ClientError("Поездка не найдена")
     if ride.found:
         found_ride = await db.get_ride_by_id(conn, ride_id=ride.found_ride_id)
         return {'found': True, 'phone': found_ride.user.phone}
@@ -122,7 +124,8 @@ async def split_status(conn, ride_id):
 
 async def split_cancel(data, conn):
     ride = await db.get_ride_by_id(conn, ride_id=data.get("rideId"))
-    await db.update_status(conn=conn, status="cancelled", ride=ride)
+    if ride:
+        await db.update_status(conn=conn, status="cancelled", ride=ride)
     return {}
 
 
@@ -133,5 +136,7 @@ async def split_rate(data, conn):
 
 async def events(request):
     data = await request.json()
-
-    return web.Response(status=200)
+    conn = request.app['db_connection']
+    await db.store_events(conn, data.get('events'))
+    user, _ = await retrieve_user_and_geolocation(data, conn=conn)
+    return web.json_response(default_response(user))

@@ -131,18 +131,20 @@ async def store_user(conn, user):
 
 async def apply_promo(conn, code):
     if not code:
-        return
+        raise cl.ClientError("Неверный промокод")
 
     sql = 'SELECT * FROM users WHERE promo=%s'
     with conn.cursor() as cursor:
         cursor.execute(sql, code)
         raw_user = cursor.fetchone()
         if not raw_user:
-            return None
+            raise cl.ClientError("Неверный промокод")
         user = cl.User().unmarshall(raw_user)
         if user.used_promo < cl.Consts.total_promo():
             user.used_promo += 1
             await update_user(conn, user)
+            return
+    raise cl.ClientError("Лимит активированных промокодов исчерпан")
 
 
 async def get_ride(conn, begin_timestamp, device_id):
@@ -256,11 +258,17 @@ async def update_status(conn, ride, status):
 
 
 async def rate_ride(conn, ride_id, rate):
-    if ride_id:
-        return
+    if not ride_id:
+        raise cl.ClientError("Нет номера поездки")
+
+    if not rate:
+        raise cl.ClientError("Нет оценки")
 
     sql = 'UPDATE rides \
                SET rate = {} \
                WHERE ride_id = %s'.format(rate)
     with conn.cursor() as cursor:
         cursor.execute(sql, ride_id)
+    ride = await get_ride_by_id(conn, ride_id=ride_id)
+    if not ride:
+        raise cl.ClientError("Поездки не существует")
