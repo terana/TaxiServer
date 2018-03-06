@@ -5,7 +5,7 @@ class Consts:
 
     @staticmethod
     def promo_len():
-        return 10
+        return 5
 
     @staticmethod
     def auth_token_len():

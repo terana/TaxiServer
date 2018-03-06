@@ -16,7 +16,7 @@ def create_auth_token(user):
 
 
 def create_promo_code(user):
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=cl.Consts.promo_len()))
+    return ''.join(random.choices(string.ascii_uppercase, k=cl.Consts.promo_len()))
 
 
 async def connect_to_db(app):
