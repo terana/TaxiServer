@@ -6,11 +6,6 @@ import classes as cl
 import database as db
 import search as sch
 
-
-async def default(request):
-    return web.json_response({})
-
-
 async def retrieve_user_and_geolocation(data, conn):
     user = cl.User(name=data.get('name'),
                    phone=data.get('phone'),

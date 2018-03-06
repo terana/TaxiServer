@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import datetime
 from time import sleep
 
@@ -10,7 +11,7 @@ import classes as cl
 import database as db
 import handlers as hd
 from database import connect_to_db, close_connection
-import json
+
 
 @middleware
 async def log_middleware(request, handler):
@@ -33,13 +34,13 @@ async def error_middleware(request, handler):
         return resp
     except (cl.ClientError, json.JSONDecodeError) as err:
         print("Caught client error in error moddleware: {}\n".format(err))
-        return web.json_response({'error': 1, 'alert_str': "{}".format(err)})
+        return web.json_response({'error': 1, 'alert_text': "{}".format(err)})
     except Exception as err:
         print("Caught exception in error moddleware: {}\n".format(err))
-        return web.json_response({'error': 1, 'alert_str': "Server error"})
+        return web.json_response({'error': 1, 'alert_text': "Server error"})
     except:
         print("Caught error in error middleware")
-        return web.json_response({'error': 1, 'alert_str': "Server error"})
+        return web.json_response({'error': 1, 'alert_text': "Server error"})
 
 
 async def check_db(app):
@@ -68,7 +69,6 @@ def launch_server(host, port):
     app.on_cleanup.append(cleanup_background_tasks)
     app.on_cleanup.append(close_connection)
 
-    app.router.add_get('/', hd.default)
     app.router.add_post('/api/v1/user', hd.store_user)
     app.router.add_post('/api/v1/events', hd.events)
     app.router.add_post('/api/v1/promo/apply', hd.apply_promo)

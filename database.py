@@ -215,15 +215,17 @@ async def search_ride(conn, ride):
             AND found != 1 \
             AND begin_timestamp + duration > {now} \
             AND mode in ({mode}) \
-            AND status != "cancelled"'.format(dev_id=ride.user.device_id,
-                                              from_lat=ride.start.lat,
-                                              from_lng=ride.start.lng,
-                                              to_lat=ride.destination.lat,
-                                              to_lng=ride.destination.lng,
-                                              from_rad=cl.Consts.start_radius_deg(),
-                                              to_rad=cl.Consts.dest_radius_deg(),
-                                              now=round(datetime.now().timestamp()),
-                                              mode=search_mode)
+            AND status != "cancelled" \
+            AND phone != "{phone}"'.format(dev_id=ride.user.device_id,
+                                           from_lat=ride.start.lat,
+                                           from_lng=ride.start.lng,
+                                           to_lat=ride.destination.lat,
+                                           to_lng=ride.destination.lng,
+                                           from_rad=cl.Consts.start_radius_deg(),
+                                           to_rad=cl.Consts.dest_radius_deg(),
+                                           now=round(datetime.now().timestamp()),
+                                           mode=search_mode,
+                                           phone=ride.user.phone)
 
     with conn.cursor() as cursor:
         cursor.execute(sql)
