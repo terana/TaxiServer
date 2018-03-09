@@ -7,6 +7,10 @@ import database as db
 import search as sch
 
 
+async def ping(request):
+    return web.Response(text="I'm OK")
+
+
 async def retrieve_user_and_geolocation(data, conn):
     user = cl.User(name=data.get('name'),
                    phone=data.get('phone'),
