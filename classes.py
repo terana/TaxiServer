@@ -88,10 +88,21 @@ class User(Marshallable):
         self.auth_token = auth_token
 
     def marshall(self):
-        return {'name': self.name}
+        return {'device_id': self.device_id,
+                'fcm_token': self.fcm_token,
+                'name': self.name,
+                'phone': self.phone,
+                'promo': self.promo,
+                'used_promo': self.used_promo,
+                'region': self.region,
+                'language': self.language,
+                'os': self.os,
+                'os_version': self.os_version,
+                'app_version': self.app_version,
+                'auth_token': self.auth_token}
 
     def unmarshall(self, db_tuple):
-        if not db_tuple:
+        if not db_tuple or len(db_tuple) < 12:
             return None
         self.device_id = db_tuple[0]
         self.fcm_token = db_tuple[1]
@@ -147,7 +158,6 @@ class Ride(Marshallable):
                  mode=None,
                  start=None,
                  destination=None,
-                 found=0,
                  found_ride_id=0,
                  status=None,
                  rate=None):
@@ -158,15 +168,25 @@ class Ride(Marshallable):
         self.mode = mode
         self.start = start
         self.destination = destination
-        self.found = found
         self.found_ride_id = found_ride_id
         self.status = status
         self.rate = rate
 
     def marshall(self):
-        return ({})
+        return ({'ride_id': self.ride_id,
+                 'begin_timestamp': self.begin_timestamp,
+                 'duration': self.duration,
+                 'user': self.user,
+                 'mode': self.mode,
+                 'start': self.start,
+                 'destination': self.destination,
+                 'found_ride_id': self.found_ride_id,
+                 'status': self.status,
+                 'rate': self.rate})
 
     def unmarshall(self, db_tuple):
+        if not db_tuple or len(db_tuple) < 12:
+            return None
         self.ride_id = db_tuple[0]
         self.begin_timestamp = db_tuple[1]
         self.duration = db_tuple[2]
@@ -176,8 +196,7 @@ class Ride(Marshallable):
         self.mode = db_tuple[4]
         self.start = Geolocation(lat=db_tuple[5], lng=db_tuple[6])
         self.destination = Geolocation(lat=db_tuple[7], lng=db_tuple[8])
-        self.found = db_tuple[11]
-        self.found_ride_id = db_tuple[12]
-        self.status = db_tuple[13]
-        self.rate = db_tuple[14]
+        self.found_ride_id = db_tuple[11]
+        self.status = db_tuple[12]
+        self.rate = db_tuple[13]
         return self

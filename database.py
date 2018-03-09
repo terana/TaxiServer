@@ -172,20 +172,22 @@ async def store_ride(conn, ride):
     ride.begin_timestamp = datetime.now().timestamp()
     ride.duration = cl.Consts.search_duration()
     sql = 'INSERT INTO rides \
-                (begin_timestamp, duration, device_id, mode, from_lat, from_lng, to_lat, to_lng, phone, fcm_token, found, found_id)\
-                VALUES ({begin}, {duration}, "{dev_id}", "{mode}", {from_lat}, {from_lng}, {to_lat}, {to_lng}, \
-                 "{phone}", "{fcm}", {found}, {found_id})'.format(begin=round(ride.begin_timestamp),
-                                                                  duration=ride.duration,
-                                                                  dev_id=ride.user.device_id,
-                                                                  mode=ride.mode,
-                                                                  from_lat=ride.start.lat,
-                                                                  from_lng=ride.start.lng,
-                                                                  to_lat=ride.destination.lat,
-                                                                  to_lng=ride.destination.lng,
-                                                                  phone=ride.user.phone,
-                                                                  fcm=ride.user.fcm_token,
-                                                                  found=ride.found,
-                                                                  found_id=ride.found_ride_id)
+                (begin_timestamp, duration, device_id, mode,\
+                 from_lat, from_lng, to_lat, to_lng, \
+                 phone, fcm_token, status)\
+                VALUES ({begin}, {duration}, "{dev_id}", "{mode}", \
+                {from_lat}, {from_lng}, {to_lat}, {to_lng}, \
+                 "{phone}", "{fcm}",  "{status}")'.format(begin=round(ride.begin_timestamp),
+                                                          duration=ride.duration,
+                                                          dev_id=ride.user.device_id,
+                                                          mode=ride.mode,
+                                                          from_lat=ride.start.lat,
+                                                          from_lng=ride.start.lng,
+                                                          to_lat=ride.destination.lat,
+                                                          to_lng=ride.destination.lng,
+                                                          phone=ride.user.phone,
+                                                          fcm=ride.user.fcm_token,
+                                                          status=ride.status)
     with conn.cursor() as cursor:
         cursor.execute(sql)
     raw_ride = await get_ride(conn=conn,
@@ -203,20 +205,19 @@ async def search_ride(conn, ride):
     elif ride.mode == "passenger":
         search_mode = "'driver'"
     else:
-        search_mode = "'driver' , passenger"
+        search_mode = "'driver' , 'passenger'"
 
     sql = 'SELECT * \
             FROM rides \
             WHERE device_id != "{dev_id}" \
+            AND phone != "{phone}"\
             AND ABS(from_lat - {from_lat}) < {from_rad} \
             AND ABS (from_lng - {from_lng}) < {from_rad} \
             AND ABS(to_lat - {to_lat}) < {to_rad} \
             AND ABS (to_lng - {to_lng}) < {to_rad} \
-            AND found != 1 \
             AND begin_timestamp + duration > {now} \
             AND mode in ({mode}) \
-            AND status != "cancelled" \
-            AND phone != "{phone}"'.format(dev_id=ride.user.device_id,
+            AND status = "search"'.format(dev_id=ride.user.device_id,
                                            from_lat=ride.start.lat,
                                            from_lng=ride.start.lng,
                                            to_lat=ride.destination.lat,
@@ -240,7 +241,7 @@ async def mark_as_found(conn, ride1, ride2):
         return
 
     sql = 'UPDATE rides \
-               SET found = 1, status="found", found_id = %s \
+               SET status="found", found_id = %s \
                WHERE ride_id = %s'
     with conn.cursor() as cursor:
         cursor.execute(sql, (ride1.ride_id, ride2.ride_id))

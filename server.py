@@ -32,7 +32,7 @@ async def error_middleware(request, handler):
         await db.connect_to_db(request.app)
         resp = await handler(request)
         return resp
-    except (cl.ClientError, json.JSONDecodeError) as err:
+    except (cl.ClientError, json.JSONDecodeError, web.HTTPClientError) as err:
         print("Caught client error in error moddleware: {}\n".format(err))
         return web.json_response({'error': 1, 'alert_text': "{}".format(err)})
     except Exception as err:

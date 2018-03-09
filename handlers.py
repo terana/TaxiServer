@@ -6,6 +6,7 @@ import classes as cl
 import database as db
 import search as sch
 
+
 async def retrieve_user_and_geolocation(data, conn):
     user = cl.User(name=data.get('name'),
                    phone=data.get('phone'),
@@ -21,11 +22,11 @@ async def retrieve_user_and_geolocation(data, conn):
         if db_user:
             user = db_user.update(user)
 
-    geolocation = data.get('geolocation')
-    if geolocation:
-        geolocation = cl.Geolocation(lat=geolocation.get('lat'), lng=geolocation.get('lng'))
-        if not geolocation.lat or not geolocation.lng:
-            geolocation = None
+    geolocation = data.get('geolocation', {})
+    if geolocation is None:
+        geolocation = {}
+    geolocation = cl.Geolocation(lat=geolocation.get('lat', cl.Consts.default_locaion().lat),
+                                 lng=geolocation.get('lng', cl.Consts.default_locaion().lng))
     return user, geolocation
 
 
@@ -33,8 +34,8 @@ def retrieve_destination(data):
     destination = data.get('destination', {})
     if not destination:
         return None
-    return cl.Geolocation(lat=destination.get('lat'),
-                          lng=destination.get('lng'))
+    return cl.Geolocation(lat=destination.get('lat', cl.Consts.default_locaion().lat),
+                          lng=destination.get('lng', cl.Consts.default_locaion().lng))
 
 
 async def retrieve_ride(data, conn):
@@ -42,8 +43,6 @@ async def retrieve_ride(data, conn):
     ride = cl.Ride(user=user, start=start,
                    destination=retrieve_destination(data),
                    mode=data.get('mode'))
-    if not start:
-        ride.start = cl.Consts.default_locaion()
     if not ride.destination:
         raise cl.ClientError("Нет точки назначения")
     if not user.device_id:
@@ -103,7 +102,9 @@ async def split(request):
 
 
 async def split_start(data, conn, loop):
-    ride = await db.store_ride(conn=conn, ride=await retrieve_ride(data, conn=conn))
+    ride = await retrieve_ride(data, conn=conn)
+    ride.status = "search"
+    ride = await db.store_ride(conn=conn, ride=ride)
     loop.create_task(sch.find_ride(conn, ride))
     return {'rideId': str(ride.ride_id), 'duration': ride.duration}
 
@@ -112,7 +113,7 @@ async def split_status(conn, ride_id):
     ride = await db.get_ride_by_id(conn, ride_id)
     if not ride:
         raise cl.ClientError("Поездка не найдена")
-    if ride.found:
+    if ride.status == "found":
         found_ride = await db.get_ride_by_id(conn, ride_id=ride.found_ride_id)
         return {'found': True, 'phone': found_ride.user.phone}
     return {'found': False, 'timeout': bool(ride.begin_timestamp + ride.duration < datetime.now().timestamp())}
