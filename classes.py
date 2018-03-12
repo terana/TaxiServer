@@ -17,11 +17,11 @@ class Consts:
 
     @staticmethod
     def start_radius_deg():
-        return 0.00078125  # around 5km
+        return 0.04  # around 5km
 
     @staticmethod
     def dest_radius_deg():
-        return 0.00078125  # around 5km
+        return 0.04  # around 5km
 
     @staticmethod
     def start_radius_km():
@@ -185,7 +185,7 @@ class Ride(Marshallable):
                  'rate': self.rate})
 
     def unmarshall(self, db_tuple):
-        if not db_tuple or len(db_tuple) < 12:
+        if not db_tuple or len(db_tuple) < 14:
             return None
         self.ride_id = db_tuple[0]
         self.begin_timestamp = db_tuple[1]

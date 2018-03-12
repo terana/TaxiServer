@@ -129,7 +129,7 @@ async def store_user(conn, user):
     return user
 
 
-async def apply_promo(conn, code):
+async def apply_promo(conn, code, dev_id):
     if not code:
         raise cl.ClientError("Неверный промокод")
 
@@ -137,14 +137,26 @@ async def apply_promo(conn, code):
     with conn.cursor() as cursor:
         cursor.execute(sql, code)
         raw_user = cursor.fetchone()
-        if not raw_user:
-            raise cl.ClientError("Неверный промокод")
-        user = cl.User().unmarshall(raw_user)
-        if user.used_promo < cl.Consts.total_promo():
-            user.used_promo += 1
-            await update_user(conn, user)
-            return
-    raise cl.ClientError("Лимит активированных промокодов исчерпан")
+    if not raw_user:
+        raise cl.ClientError("Неверный промокод")
+    user = cl.User().unmarshall(raw_user)
+    if user.used_promo >= cl.Consts.total_promo():
+        raise cl.ClientError("Лимит активированных промокодов исчерпан")
+
+    try:
+        await add_promo_appliance(conn=conn, code=code, dev_id=dev_id)
+    except pymysql.IntegrityError:
+        raise cl.ClientError("Промокод дважды применен одним пользователем")
+    user.used_promo += 1
+    await update_user(conn, user)
+
+
+async def add_promo_appliance(conn, dev_id, code):
+    sql = "INSERT INTO promo \
+          (promo, applied_dev_id) \
+          VALUES (%s, %s)"
+    with conn.cursor() as cursor:
+        cursor.execute(sql, (code, dev_id))
 
 
 async def get_ride(conn, begin_timestamp, device_id):
@@ -166,30 +178,53 @@ async def get_ride_by_id(conn, ride_id):
     return None
 
 
+async def get_current_ride(conn, device_id):
+    if not device_id:
+        return None
+    sql = "SELECT * \
+            FROM rides \
+            WHERE device_id = '{did}' \
+            AND status = 'search' \
+            AND begin_timestamp + duration > {now}".format(did=device_id, now=round(datetime.now().timestamp()))
+    with conn.cursor() as cursor:
+        cursor.execute(sql)
+        raw_ride = cursor.fetchone()
+        if raw_ride:
+            return cl.Ride().unmarshall(raw_ride)
+    return None
+
+
+async def insert_ride(conn, ride):
+    sql = 'INSERT INTO rides \
+            (begin_timestamp, duration, device_id, mode,\
+            from_lat, from_lng, to_lat, to_lng, \
+            phone, fcm_token, status)\
+            VALUES ({begin}, {duration}, "{dev_id}", "{mode}", \
+                    {from_lat}, {from_lng}, {to_lat}, {to_lng}, \
+                    "{phone}", "{fcm}",  "{status}")'.format(begin=round(ride.begin_timestamp),
+                                                             duration=ride.duration,
+                                                             dev_id=ride.user.device_id,
+                                                             mode=ride.mode,
+                                                             from_lat=ride.start.lat,
+                                                             from_lng=ride.start.lng,
+                                                             to_lat=ride.destination.lat,
+                                                             to_lng=ride.destination.lng,
+                                                             phone=ride.user.phone,
+                                                             fcm=ride.user.fcm_token,
+                                                             status=ride.status)
+    with conn.cursor() as cursor:
+        cursor.execute(sql)
+
+
 async def store_ride(conn, ride):
     if not ride:
         return None
     ride.begin_timestamp = datetime.now().timestamp()
     ride.duration = cl.Consts.search_duration()
-    sql = 'INSERT INTO rides \
-                (begin_timestamp, duration, device_id, mode,\
-                 from_lat, from_lng, to_lat, to_lng, \
-                 phone, fcm_token, status)\
-                VALUES ({begin}, {duration}, "{dev_id}", "{mode}", \
-                {from_lat}, {from_lng}, {to_lat}, {to_lng}, \
-                 "{phone}", "{fcm}",  "{status}")'.format(begin=round(ride.begin_timestamp),
-                                                          duration=ride.duration,
-                                                          dev_id=ride.user.device_id,
-                                                          mode=ride.mode,
-                                                          from_lat=ride.start.lat,
-                                                          from_lng=ride.start.lng,
-                                                          to_lat=ride.destination.lat,
-                                                          to_lng=ride.destination.lng,
-                                                          phone=ride.user.phone,
-                                                          fcm=ride.user.fcm_token,
-                                                          status=ride.status)
-    with conn.cursor() as cursor:
-        cursor.execute(sql)
+    current_ride = await get_current_ride(conn=conn, device_id=ride.user.device_id)
+    if current_ride:
+        await update_status(conn=conn, ride=current_ride, status="cancelled")
+    await insert_ride(conn=conn, ride=ride)
     raw_ride = await get_ride(conn=conn,
                               device_id=ride.user.device_id,
                               begin_timestamp=round(ride.begin_timestamp))
@@ -218,15 +253,15 @@ async def search_ride(conn, ride):
             AND begin_timestamp + duration > {now} \
             AND mode in ({mode}) \
             AND status = "search"'.format(dev_id=ride.user.device_id,
-                                           from_lat=ride.start.lat,
-                                           from_lng=ride.start.lng,
-                                           to_lat=ride.destination.lat,
-                                           to_lng=ride.destination.lng,
-                                           from_rad=cl.Consts.start_radius_deg(),
-                                           to_rad=cl.Consts.dest_radius_deg(),
-                                           now=round(datetime.now().timestamp()),
-                                           mode=search_mode,
-                                           phone=ride.user.phone)
+                                          from_lat=ride.start.lat,
+                                          from_lng=ride.start.lng,
+                                          to_lat=ride.destination.lat,
+                                          to_lng=ride.destination.lng,
+                                          from_rad=cl.Consts.start_radius_deg(),
+                                          to_rad=cl.Consts.dest_radius_deg(),
+                                          now=round(datetime.now().timestamp()),
+                                          mode=search_mode,
+                                          phone=ride.user.phone)
 
     with conn.cursor() as cursor:
         cursor.execute(sql)
