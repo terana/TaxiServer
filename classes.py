@@ -1,3 +1,6 @@
+import settings
+
+
 class Consts:
     @staticmethod
     def total_promo():
@@ -13,23 +16,25 @@ class Consts:
 
     @staticmethod
     def search_duration():
-        return 120
+        return settings.search_duration
 
     @staticmethod
     def start_radius_deg():
-        return 0.04  # around 5km
+        r = settings.start_radius
+        return r / 6400. * 180 / 3.14
 
     @staticmethod
     def dest_radius_deg():
-        return 0.04  # around 5km
+        r = settings.destination_radius
+        return r / 6400. * 180 / 3.14
 
     @staticmethod
     def start_radius_km():
-        return Consts.start_radius_deg() * 6400
+        return settings.start_radius
 
     @staticmethod
     def dest_radius_km():
-        return Consts.dest_radius_deg() * 6400
+        return settings.destination_radius
 
     @staticmethod
     def push_server_key():

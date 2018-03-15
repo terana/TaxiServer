@@ -11,7 +11,7 @@ import classes as cl
 import database as db
 import handlers as hd
 from database import connect_to_db, close_connection
-
+import settings
 
 @middleware
 async def log_middleware(request, handler):
@@ -82,7 +82,7 @@ def launch_server(host, port):
 
 if __name__ == "__main__":
     try:
-        launch_server("78.140.221.64", 80)
+        launch_server(settings.server_host, settings.server_port)
     except:
         sleep(2)
-        launch_server("78.140.221.64", 80)
+        launch_server(settings.server_host, settings.server_port)

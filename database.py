@@ -5,6 +5,7 @@ from datetime import datetime
 import pymysql
 
 import classes as cl
+import settings
 
 pymysql.install_as_MySQLdb()
 
@@ -21,10 +22,10 @@ def create_promo_code(user):
 
 async def connect_to_db(app):
     connection = pymysql.connect(
-        host='127.0.0.1',
-        user='split',
-        password='taxisplit1927230',
-        database='taxi',
+        host=settings.database_host,
+        user=settings.database_user,
+        password=settings.database_password,
+        database=settings.database_name,
         charset='utf8')
     connection.autocommit(True)
     app['db_connection'] = connection
